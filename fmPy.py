@@ -45,6 +45,9 @@ import fmInfo
 # initialise error var
 fmError = 'OK'
 
+#initialise f array
+f = {'foo':'bar'}
+
 # This seems needed for the FMRest stuff
 requests.packages.urllib3.disable_warnings()
 
@@ -127,6 +130,26 @@ elif (action == 'updateRecord'):
     except FileMakerError as updateError:
         fmError = updateError
 
+elif(action=='getRecord'):
+    #Set up the query
+    find_query = [fmPayload]
+    try:
+        #Perform the find
+        foundset = fms.find(query=find_query)
+    except FileMakerError as findError:
+        fmError = findError
+    
+    record = foundset[0]
+
+    keys = record.keys()
+
+    #print(action)
+    f = {}
+    for key in keys:
+        # get the value for the field
+        value = record[key]
+        f[key] = value
+
 # Be nice and close the DAPI connection
 fms.logout()
 
@@ -134,11 +157,7 @@ fms.logout()
 # You can check for this in FM by seeing if whatever field or var you used in Insert from URL is OK
 if (fmError != 'OK'):
     print(fmError)
+elif(action=='getRecord'):
+    print(f)
 else:
     print('OK')
-
-
-
-
-
-
