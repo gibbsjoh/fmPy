@@ -7,8 +7,8 @@
 # 
 ########################
 
-userName = 'admin'
-myPassword = 'dance200'
+userName = 'user'
+myPassword = 'password'
 
 # any custom functions here
 
