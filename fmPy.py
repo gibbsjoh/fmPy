@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# fmPy v1.0
+# fmPy v1.15
 ########################
 #
 # This is a simple script to update or create a record in a FileMaker table using the data api_version
@@ -45,6 +45,9 @@ import fmInfo
 # initialise error var
 fmError = 'OK'
 
+# set timeout higher
+fmrest.utils.TIMEOUT = 40
+
 #initialise f array
 f = {'foo':'bar'}
 
@@ -56,15 +59,26 @@ form = cgi.FieldStorage()
 payloadRaw = form.getvalue('payloadData')
 
 # Unencode the payload data
-p = base64.b64decode(payloadRaw)
-payloadData = p.decode('utf-8')
+# first we see if it's already JSON and we just load it right in
+try:
+    formJSON = json.loads(payloadRaw)
+except:
+    p = base64.b64decode(payloadRaw)
+    payloadData = p.decode('utf-8')
+    formJSON = json.loads(payloadData)
+
+# if (payloadRaw[0] == "{"):
+#     #not encoded
+#     notJSON = 1
+#     payloadData = payloadRaw
+# else:
+#     notJSON = 0
+#     p = base64.b64decode(payloadRaw)
+#     payloadData = p.decode('utf-8')
 
 # debugging
 #print(payloadData)
 #exit()
-
-# Convert the payload to JSON so Python can do things with it
-formJSON = json.loads(payloadData)
 
 # what are we doing?
 action = formJSON['action']
@@ -135,21 +149,53 @@ elif(action=='getRecord'):
     find_query = [fmPayload]
     try:
         #Perform the find
-        foundset = fms.find(query=find_query)
+        foundset = fms.find(query=find_query,limit=20000)
     except FileMakerError as findError:
         fmError = findError
+
+    returnArray = {}
+    i = 0
+    for r in foundset:
+        thisRecord = foundset[i]
+        f = {}
+        keys = thisRecord.keys()
+        for key in keys:
+            # get the value for the field
+            value = thisRecord[key]
+            f[key] = value
+        
+        returnArray[i] = f
+        i = i + 1
     
-    record = foundset[0]
+    returnArray = json.dumps(returnArray)
 
-    keys = record.keys()
+elif(action=='runScript'):
+    # new! 31/03/22 run a script (requires a data set to find, for now using the pk/uuid method)
+    uuid = formJSON['uuid']
+    pk = formJSON['pk']
 
-    #print(action)
-    f = {}
-    for key in keys:
-        # get the value for the field
-        value = record[key]
-        f[key] = value
+    # the API can take a parameter, for my use case we pass it a JSON array
+    # specify the script in the data array as 'fmScript'
+    # the parameter array is the 'data' array we use for getRecord usually
+    fmScript = fmPayload['fmScript']
 
+    #bug fix here v1.51 12-04-2022 to ensure proper JSON passed to script
+    paramJSON = json.dumps(fmPayload)
+    # need some form of error capture here!
+
+    find_query = [{ pk : uuid}]
+    try:
+        foundset = fms.find(query=find_query,scripts={'after': [fmScript, paramJSON]})
+        #1.51 added logic to catch the FMS script result.
+        #the result is a touple with when it ran (eg after), the last FM error code, and what you passed with "exit script" in FM
+        scriptResult = fms.last_script_result
+        resultKeys = scriptResult.keys()
+
+    except FileMakerError as findError:
+        fmError = findError
+    #record = foundset[0]
+
+    
 # Be nice and close the DAPI connection
 fms.logout()
 
@@ -158,6 +204,9 @@ fms.logout()
 if (fmError != 'OK'):
     print(fmError)
 elif(action=='getRecord'):
-    print(f)
+    print(returnArray)
+elif(action=='runScript'):
+    print('OK')
+    print('FMS script result:',scriptResult)
 else:
     print('OK')
