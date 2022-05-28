@@ -1,4 +1,9 @@
 # fmPy
+
+Changelog:
+
+28/05/22 cleanup line 1
+
 Python script to create or update records in FileMaker using the Data API.
 
 ** I am relatively new to Python and that probably shows in the code.
