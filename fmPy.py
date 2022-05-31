@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# fmPy v1.15
+# fmPy v1.2
 ########################
 #
 # This is a simple script to update or create a record in a FileMaker table using the data api_version
