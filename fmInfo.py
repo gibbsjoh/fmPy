@@ -7,8 +7,9 @@
 # 
 ########################
 
-userName = 'user'
-myPassword = 'password'
+userName = 'data_api'
+myPassword = 'Qu4rk5B4r?'
+eventLogUser = 'eventlog_dataapi'
 
 # any custom functions here
 

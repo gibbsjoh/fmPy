@@ -41,6 +41,7 @@ from fmrest.exceptions import FileMakerError
 import json
 import cgi
 import base64
+import urllib.parse
 import fmInfo
 
 # initialise error var
@@ -58,11 +59,16 @@ requests.packages.urllib3.disable_warnings()
 # The encoded array is sent as part of the URL, so get it into the script
 form = cgi.FieldStorage()
 payloadRaw = form.getvalue('payloadData')
+# print(payloadRaw)
+# exit()
 
 # Unencode the payload data
 # first we see if it's already JSON and we just load it right in
 try:
-    formJSON = json.loads(payloadRaw)
+    test = json.loads(payloadRaw)
+    #unurlencode
+    payloadClean = urllib.parse.unquote(payloadRaw)
+    formJSON = json.loads(payloadClean)
 except:
     p = base64.b64decode(payloadRaw)
     payloadData = p.decode('utf-8')
@@ -90,7 +96,10 @@ layoutName = formJSON['layoutName']
 
 # Get our user creds
 #   If you have different users for different files, change the userName variable to maybe userNameSolutionName
-userName = fmInfo.userName
+if databaseName == 'FMEventLog':
+    userName = fmInfo.eventLogUser
+else:
+    userName = fmInfo.userName
 myPassword = fmInfo.myPassword
 
 # Connnect to the FileMaker server
@@ -151,24 +160,26 @@ elif(action=='getRecord'):
     try:
         #Perform the find
         foundset = fms.find(query=find_query,limit=20000)
+        returnArray = {}
+        i = 0
+        for r in foundset:
+            thisRecord = foundset[i]
+            f = {}
+            keys = thisRecord.keys()
+            for key in keys:
+                # get the value for the field
+                value = thisRecord[key]
+                f[key] = value
+                
+            returnArray[i] = f
+            i = i + 1
+        
+        returnArray = json.dumps(returnArray)
+
     except FileMakerError as findError:
         fmError = findError
 
-    returnArray = {}
-    i = 0
-    for r in foundset:
-        thisRecord = foundset[i]
-        f = {}
-        keys = thisRecord.keys()
-        for key in keys:
-            # get the value for the field
-            value = thisRecord[key]
-            f[key] = value
-        
-        returnArray[i] = f
-        i = i + 1
-    
-    returnArray = json.dumps(returnArray)
+
 
 elif(action=='runScript'):
     # new! 31/03/22 run a script (requires a data set to find, for now using the pk/uuid method)
@@ -203,6 +214,7 @@ fms.logout()
 # If an error occured, report back, otherwise result is OK
 # You can check for this in FM by seeing if whatever field or var you used in Insert from URL is OK
 if (fmError != 'OK'):
+    #errorJSON = {'fmError':fmError}
     print(fmError)
 elif(action=='getRecord'):
     print(returnArray)
