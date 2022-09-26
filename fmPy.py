@@ -130,12 +130,13 @@ keys = fmPayload.keys()
 #now we do something with it!
 if (action == "createRecord"): #create a new record w/ values we've passed it.
     #print(action)
-    f = {}
-    for key in keys:
-        # get the value for the field
-        value = fmPayload[key]
-        f[key] = value
-        fmArray = f #json.dumps(f)
+    #The below isn't needed..
+    # f = {}
+    # for key in keys:
+    #     # get the value for the field
+    #     value = fmPayload[key]
+    #     f[key] = value
+    #     fmArray = f #json.dumps(f)
     
     try:
         record_id = fms.create_record(fmArray)
