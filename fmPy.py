@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 
+<<<<<<< HEAD
 # fmPy v1.6
+=======
+# fmPy v1.2
+>>>>>>> 1b4901fdd4e65914f928778cb633a1c7cb11ca32
 ########################
 #
 # This is a simple script to update or create a record in a FileMaker table using the data api_version
@@ -66,7 +70,11 @@ payloadRaw = form.getvalue('payloadData')
 # Unencode the payload data
 # first we see if it's already JSON and we just load it right in
 try:
+<<<<<<< HEAD
     #test = json.loads(payloadRaw)
+=======
+    test = json.loads(payloadRaw)
+>>>>>>> 1b4901fdd4e65914f928778cb633a1c7cb11ca32
     #unurlencode
     payloadClean = urllib.parse.unquote(payloadRaw)
     formJSON = json.loads(payloadClean)
@@ -180,6 +188,7 @@ elif(action=='getRecord'):
     except FileMakerError as findError:
         fmError = findError
 
+<<<<<<< HEAD
 elif(action=='getRecord2'):
     # this is the same as getRecord but uses a specific field as the key name.
     # used for the FM script part of Topaz or others so you get an erray where you can get the data for it by JSONGetElement(theScriptName)
@@ -209,6 +218,8 @@ elif(action=='getRecord2'):
     except FileMakerError as findError:
         fmError = findError
 
+=======
+>>>>>>> 1b4901fdd4e65914f928778cb633a1c7cb11ca32
 
 
 elif(action=='runScript'):
