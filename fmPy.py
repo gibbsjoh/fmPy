@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# fmPy v1.15
+# fmPy v1.6
 ########################
 #
 # This is a simple script to update or create a record in a FileMaker table using the data api_version
@@ -41,13 +41,15 @@ from fmrest.exceptions import FileMakerError
 import json
 import cgi
 import base64
+import urllib.parse
 import fmInfo
+import os
 
 # initialise error var
 fmError = 'OK'
 
 # set timeout higher
-fmrest.utils.TIMEOUT = 40
+fmrest.utils.TIMEOUT = 300
 
 #initialise f array
 f = {'foo':'bar'}
@@ -58,11 +60,16 @@ requests.packages.urllib3.disable_warnings()
 # The encoded array is sent as part of the URL, so get it into the script
 form = cgi.FieldStorage()
 payloadRaw = form.getvalue('payloadData')
+# print(payloadRaw)
+# exit()
 
 # Unencode the payload data
 # first we see if it's already JSON and we just load it right in
 try:
-    formJSON = json.loads(payloadRaw)
+    #test = json.loads(payloadRaw)
+    #unurlencode
+    payloadClean = urllib.parse.unquote(payloadRaw)
+    formJSON = json.loads(payloadClean)
 except:
     p = base64.b64decode(payloadRaw)
     payloadData = p.decode('utf-8')
@@ -90,7 +97,10 @@ layoutName = formJSON['layoutName']
 
 # Get our user creds
 #   If you have different users for different files, change the userName variable to maybe userNameSolutionName
-userName = fmInfo.userName
+if databaseName == 'FMEventLog':
+    userName = fmInfo.eventLogUser
+else:
+    userName = fmInfo.userName
 myPassword = fmInfo.myPassword
 
 # Connnect to the FileMaker server
@@ -151,24 +161,55 @@ elif(action=='getRecord'):
     try:
         #Perform the find
         foundset = fms.find(query=find_query,limit=20000)
+        returnArray = {}
+        i = 0
+        for r in foundset:
+            thisRecord = foundset[i]
+            f = {}
+            keys = thisRecord.keys()
+            for key in keys:
+                # get the value for the field
+                value = thisRecord[key]
+                f[key] = value
+                
+            returnArray[i] = f
+            i = i + 1
+        
+        returnArray = json.dumps(returnArray)
+
     except FileMakerError as findError:
         fmError = findError
 
-    returnArray = {}
-    i = 0
-    for r in foundset:
-        thisRecord = foundset[i]
-        f = {}
-        keys = thisRecord.keys()
-        for key in keys:
-            # get the value for the field
-            value = thisRecord[key]
-            f[key] = value
+elif(action=='getRecord2'):
+    # this is the same as getRecord but uses a specific field as the key name.
+    # used for the FM script part of Topaz or others so you get an erray where you can get the data for it by JSONGetElement(theScriptName)
+    #Im sure somehow I can use this to be able to specify the field so could use a Topaz reference etc
+    #Set up the query
+    find_query = [fmPayload]
+    try:
+        #Perform the find
+        foundset = fms.find(query=find_query,limit=20000)
+        returnArray = {}
+        i = 0
+        for r in foundset:
+            thisRecord = foundset[i]
+            thisValueForKey = thisRecord.ScriptName
+            f = {}
+            keys = thisRecord.keys()
+            for key in keys:
+                # get the value for the field
+                value = thisRecord[key]
+                f[key] = value
+                
+            returnArray[thisValueForKey] = f
+            i = i + 1
         
-        returnArray[i] = f
-        i = i + 1
-    
-    returnArray = json.dumps(returnArray)
+        returnArray = json.dumps(returnArray)
+
+    except FileMakerError as findError:
+        fmError = findError
+
+
 
 elif(action=='runScript'):
     # new! 31/03/22 run a script (requires a data set to find, for now using the pk/uuid method)
@@ -186,7 +227,7 @@ elif(action=='runScript'):
 
     find_query = [{ pk : uuid}]
     try:
-        foundset = fms.find(query=find_query,scripts={'after': [fmScript, paramJSON]})
+        foundset = fms.find(query=find_query,scripts={'prerequest': [fmScript, paramJSON]})
         #1.51 added logic to catch the FMS script result.
         #the result is a touple with when it ran (eg after), the last FM error code, and what you passed with "exit script" in FM
         scriptResult = fms.last_script_result
@@ -196,6 +237,25 @@ elif(action=='runScript'):
         fmError = findError
     #record = foundset[0]
 
+elif(action=='saveFile'):
+    #new feature to test saving B64 encoded file to temp folder (no fm stuff for now!)
+    fileB64 = fmPayload['FileB64']
+    fileName = fmPayload['FileName']
+
+    #decode
+    fileDecoded = base64.b64decode(fileB64)
+    #fileDecoded = p.decode('utf-8')
+
+    #set path
+    tempPath = r"c:\temp"
+    os.chdir(tempPath)
+
+    #write to path
+    with open(fileName, 'wb') as output_file:
+        output_file.write(fileDecoded)
+    
+    fmError = 'OK'
+    saveFileMessage = "(000) OK"
     
 # Be nice and close the DAPI connection
 fms.logout()
@@ -203,11 +263,14 @@ fms.logout()
 # If an error occured, report back, otherwise result is OK
 # You can check for this in FM by seeing if whatever field or var you used in Insert from URL is OK
 if (fmError != 'OK'):
+    #errorJSON = {'fmError':fmError}
     print(fmError)
-elif(action=='getRecord'):
+elif(action=='getRecord' or action=='getRecord2'):
     print(returnArray)
 elif(action=='runScript'):
     print('OK')
     print('FMS script result:',scriptResult)
+elif(action=='saveFile'):
+    print(saveFileMessage)
 else:
     print('OK')
